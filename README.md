@@ -97,8 +97,61 @@ prisma/
   seed.ts        # User seed script
 ```
 
+## Deploying to Vercel
+
+Vercel’s serverless runtime **cannot open a local SQLite file** (`file:./prisma/dev.db`). The database file is not on disk at runtime, and the filesystem is not suitable for SQLite. You need a **remote** SQLite-compatible database.
+
+This project supports [Turso](https://turso.tech/) (libSQL) for production.
+
+### 1. Create a Turso database
+
+```bash
+# Install Turso CLI: https://docs.turso.tech/cli
+turso auth login
+turso db create meer-task
+turso db show meer-task --url
+turso db tokens create meer-task
+```
+
+### 2. Apply the schema to Turso
+
+```bash
+turso db shell meer-task < prisma/migrations/20260528194528_init/migration.sql
+```
+
+(Use your actual DB name if different.)
+
+### 3. Seed users on Turso
+
+Set Turso env vars locally (or in your shell), then:
+
+```bash
+export TURSO_DATABASE_URL="libsql://..."
+export TURSO_AUTH_TOKEN="..."
+npm run db:seed
+```
+
+Use the same `USER1_*` / `USER2_*` values you want in production.
+
+### 4. Configure Vercel environment variables
+
+In the Vercel project → **Settings → Environment Variables**, add:
+
+| Variable | Description |
+|----------|-------------|
+| `TURSO_DATABASE_URL` | `libsql://...` from `turso db show` |
+| `TURSO_AUTH_TOKEN` | Token from `turso db tokens create` |
+| `SESSION_SECRET` | Long random string (32+ chars) |
+| `USER1_USERNAME`, `USER1_PASSWORD`, `USER1_DISPLAY_NAME` | First account (for reference; seed already ran) |
+| `USER2_USERNAME`, `USER2_PASSWORD`, `USER2_DISPLAY_NAME` | Second account |
+
+Do **not** set `DATABASE_URL` to `file:./prisma/dev.db` on Vercel.
+
+Redeploy after saving env vars.
+
 ## Notes
 
 - This app is intentionally scoped for **two users only**.
 - There is no signup flow — accounts are created via the seed script.
-- SQLite stores data in `prisma/dev.db` (gitignored).
+- Local dev: SQLite in `prisma/dev.db` (gitignored).
+- Production (Vercel): Turso via `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`.
