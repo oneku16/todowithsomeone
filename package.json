@@ -10,7 +10,8 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "db:turso:migrate": "sh -c 'test -n \"$TURSO_DB_NAME\" || (echo \"Set TURSO_DB_NAME to your Turso database name\" && exit 1); turso db shell \"$TURSO_DB_NAME\" < prisma/migrations/20260528194528_init/migration.sql'"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

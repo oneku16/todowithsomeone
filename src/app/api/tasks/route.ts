@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { createTaskSchema } from "@/lib/validations";
 import { jsonError, jsonOk } from "@/lib/api";
+import { handleRouteError } from "@/lib/route-error";
 import { serializeTask, taskInclude } from "@/lib/tasks";
 
 export async function GET(request: Request) {
@@ -52,6 +53,13 @@ export async function POST(request: Request) {
 
     const { title, description, category, assignedToId, dueDate } = parsed.data;
 
+    const assigner = await prisma.user.findUnique({
+      where: { id: currentUser.userId },
+    });
+    if (!assigner) {
+      return jsonError("Session expired. Log out and sign in again.", 401);
+    }
+
     const assignee = await prisma.user.findUnique({ where: { id: assignedToId } });
     if (!assignee) {
       return jsonError("Invalid assignee");
@@ -60,17 +68,17 @@ export async function POST(request: Request) {
     const task = await prisma.task.create({
       data: {
         title,
-        description,
+        description: description ?? null,
         category,
-        assignedById: currentUser.userId,
-        assignedToId,
-        dueDate: dueDate ? new Date(dueDate) : null,
+        assignedById: assigner.id,
+        assignedToId: assignee.id,
+        dueDate: dueDate ? new Date(`${dueDate}T00:00:00.000Z`) : null,
       },
       include: taskInclude,
     });
 
     return jsonOk({ task: serializeTask(task) }, 201);
-  } catch {
-    return jsonError("Something went wrong", 500);
+  } catch (error) {
+    return handleRouteError("[POST /api/tasks]", error);
   }
 }
