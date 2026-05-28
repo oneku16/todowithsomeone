@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  tasksAssigned Task[] @relation("AssignedBy")
+  tasksReceived Task[] @relation("AssignedTo")
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  category    Category
+  status      TaskStatus @default(PENDING)
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  completedAt DateTime?
+
+  assignedById String
+  assignedToId String
+  assignedBy   User @relation("AssignedBy", fields: [assignedById], references: [id])
+  assignedTo   User @relation("AssignedTo", fields: [assignedToId], references: [id])
+}
+
+enum Category {
+  WATCH
+  GO
+  DO
+}
+
+enum TaskStatus {
+  PENDING
+  DONE
+}
